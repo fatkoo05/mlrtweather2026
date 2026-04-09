@@ -1,0 +1,11 @@
+{
+  "name": "澳門天氣實時站點",
+  "short_name": "澳門天氣",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#2c3e50",
+  "theme_color": "#4facfe",
+  "icons": [
+    { "src": "https://cdn-icons-png.flaticon.com/512/1163/1163763.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

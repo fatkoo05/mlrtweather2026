@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>澳門天氣實時資訊 Pro</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4facfe">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root {
+            --sunny-grad: linear-gradient(180deg, #4facfe 0%, #00f2fe 100%);
+            --cloudy-grad: linear-gradient(180deg, #bdc3c7 0%, #2c3e50 100%);
+            --rainy-grad: linear-gradient(180deg, #4b6cb7 0%, #182848 100%);
+            --night-grad: linear-gradient(180deg, #243b55 0%, #141e30 100%);
+            --card-glass: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'PingFang HK', sans-serif;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            background: var(--sunny-grad);
+            transition: background 1s ease;
+            color: white;
+            overflow-x: hidden; /* 防止動畫溢出 */
+            position: relative;
+        }
+
+        /* --- 動畫容器 --- */
+        #animation-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none; /* 讓點擊穿透動畫層 */
+            z-index: 0;
+        }
+
+        /* 雨滴動畫 CSS */
+        .rain {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.6);
+            width: 2px;
+            height: 15px;
+            top: -20px;
+            border-radius: 2px;
+            animation: fall linear infinite;
+        }
+        @keyframes fall {
+            to { transform: translateY(100vh); }
+        }
+
+        /* 星星動畫 CSS */
+        .star {
+            position: absolute;
+            background-color: white;
+            width: 2px;
+            height: 2px;
+            border-radius: 50%;
+            animation: twinkle 2s infinite ease-in-out;
+        }
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.2; }
+            50% { opacity: 1; }
+        }
+
+        /* --- UI 介面 --- */
+        .glass-panel {
+            width: 100%;
+            max-width: 450px;
+            background: rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            position: relative;
+            z-index: 1; /* 確保 UI 在動畫上方 */
+        }
+
+        .warning-banner {
+            background: #ff4757;
+            padding: 10px;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 20px;
+            display: none;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse { 0% {opacity: 1} 50% {opacity: 0.6} 100% {opacity: 1} }
+
+        .main-weather {
+            text-align: center;
+            padding: 30px 0;
+        }
+        .main-weather i { font-size: 80px; margin-bottom: 15px; text-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .temp-now { font-size: 5rem; font-weight: 200; margin: 0; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+        .desc { font-size: 1.5rem; opacity: 0.9; }
+
+        .station-grid {
+            background: var(--card-glass);
+            border-radius: 15px;
+            padding: 15px;
+            margin: 20px 0;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .station-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .station-item:last-child { border: none; }
+
+        .footer-info {
+            text-align: center;
+            font-size: 0.8rem;
+            opacity: 0.7;
+            margin-top: 30px;
+            padding-bottom: 20px;
+        }
+        
+        button#install-btn {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid white;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            margin-top: 10px;
+            display: none; /* 預設隱藏，只有符合安裝條件才顯示 */
+        }
+    </style>
+</head>
+<body>
+
+<div id="animation-container"></div> <div class="glass-panel">
+    <div id="warning-node" class="warning-banner"></div>
+
+    <div class="main-weather">
+        <i id="weather-icon" class="fas fa-sun"></i>
+        <p class="temp-now" id="cur-temp">--°</p>
+        <p class="desc" id="cur-desc">正在同步氣象局數據...</p>
+        <span id="update-time" style="font-size: 0.8rem; opacity: 0.6;"></span>
+        <br>
+        <button id="install-btn">安裝 App</button>
+    </div>
+
+    <div class="station-grid">
+        <div style="font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 5px;">分區實時氣溫</div>
+        <div id="station-list">
+            <div class="station-item"><span>大潭山</span><span>--°C</span></div>
+            <div class="station-item"><span>澳門砲台山</span><span>--°C</span></div>
+            <div class="station-item"><span>路環分站</span><span>--°C</span></div>
+        </div>
+    </div>
+
+    <div class="footer-info">
+        <p>數據來源：澳門地球物理氣象局 (SMG)</p>
+        <p>此頁面每 5 分鐘自動刷新</p>
+    </div>
+</div>
+
+<script>
+// 使用更強大的代理服務器組合
+const proxies = [
+    "https://api.allorigins.win/raw?url=",
+    "https://corsproxy.io/?"
+];
+
+async function fetchWithRetry(targetUrl) {
+    for (let proxy of proxies) {
+        try {
+            const res = await fetch(proxy + encodeURIComponent(targetUrl));
+            if (res.ok) return await res.json();
+        } catch (e) {
+            console.warn(`代理 ${proxy} 失敗，嘗試下一個...`);
+        }
+    }
+    throw new Error("所有數據代理均失效");
+}
+
+async function fetchStations() {
+    const list = document.getElementById('station-list');
+    try {
+        // 氣象局實時各站數據 JSON 連結
+        const target = "https://www.smg.gov.mo/static/data/actual_stations.json?_=" + Date.now();
+        const data = await fetchWithRetry(target);
+        
+        // 氣象局數據結構處理：數據通常在 data 鍵值下或直接是數組
+        const stations = data.data || data;
+        
+        list.innerHTML = '';
+        stations.forEach(st => {
+            // 排除掉沒有數據的站點
+            if (!st.temp && !st.wind_speed) return;
+
+            const item = document.createElement('div');
+            item.className = 'station-item';
+            item.innerHTML = `
+                <div>
+                    <span class="label-sm">位置</span>
+                    <strong>${st.station_name_cn || st.station_name}</strong>
+                </div>
+                <div>
+                    <span class="label-sm">氣溫</span>
+                    <span style="color: #fffa65; font-weight:bold;">${st.temp || '--'}°C</span>
+                </div>
+                <div>
+                    <span class="label-sm">風速(km/h)</span>
+                    ${st.wind_speed || '--'}
+                </div>
+            `;
+            list.appendChild(item);
+        });
+    } catch (e) {
+        console.error(e);
+        list.innerHTML = `
+            <div style="text-align:center; padding: 20px; color: #ffbcff;">
+                <i class="fas fa-exclamation-triangle"></i><br>
+                數據加載失敗<br>
+                <small style="font-size:0.7rem; opacity:0.8;">請檢查網絡或稍後再試</small>
+            </div>`;
+    }
+}
+
+// 警告與大潭山主數據建議繼續使用 RSS2JSON (較穩定)
+async function fetchActual() {
+    const rssUrl = "https://rss.smg.gov.mo/c_ActualWeather_rss.xml";
+    try {
+        const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&t=${Date.now()}`);
+        const data = await res.json();
+        if(data.status === 'ok') {
+            const item = data.items[0];
+            const content = item.content;
+            const tempMatch = content.match(/(\d+°C)/);
+            
+            document.getElementById('main-temp').innerText = tempMatch ? tempMatch[0].replace('°C', '°') : "--°";
+            document.getElementById('main-desc').innerText = item.title;
+            document.getElementById('update-time').innerText = "最後更新: " + item.pubDate;
+        }
+    } catch (e) {
+        console.error("RSS 獲取失敗");
+    }
+}
+</script>
+
+</body>
+</html>
