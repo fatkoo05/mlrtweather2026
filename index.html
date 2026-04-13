@@ -14,8 +14,32 @@
         }
         body { display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; }
         header { display: flex; justify-content: space-between; align-items: center; padding: 5px 10px 15px 5px; flex-shrink: 0; }
-        h1 { margin: 0; font-size: 1.5rem; color: #58a6ff; letter-spacing: 1px; }
+        h1 { margin: 0; font-size: 1.5rem; color: #58a6ff; letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
         
+        /* 手動刷新按鈕樣式 */
+        .refresh-btn {
+            background: #21262d;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+            margin-left: 15px; /* 放在標題右側 */
+        }
+        .refresh-btn:hover { background: #30363d; border-color: #8b949e; }
+        .refresh-btn:active { transform: scale(0.95); }
+        
+        /* 旋轉動畫 */
+        .fa-spin-once { animation: spin 0.8s ease-in-out; }
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+
         #actual-mini {
             display: flex; gap: 25px; background: rgba(88, 166, 255, 0.12);
             padding: 10px 25px; border-radius: 40px; border: 1px solid rgba(88, 166, 255, 0.3);
@@ -76,7 +100,12 @@
 <body>
 
     <header>
-        <h1><i class="fa-solid fa-tower-broadcast"></i> 澳門資訊監控</h1>
+        <h1>
+            <span><i class="fa-solid fa-tower-broadcast"></i> 澳門資訊監控</span>
+            <button class="refresh-btn" onclick="manualRefresh()">
+                <i id="refresh-icon" class="fa-solid fa-arrows-rotate"></i> 手動刷新
+            </button>
+        </h1>
         <div id="actual-mini">數據載入中...</div>
     </header>
 
@@ -114,6 +143,19 @@
     
     let trafficDataList = [];
     let newsDataList = [];
+
+    // 【新增】手動刷新函數
+    async function manualRefresh() {
+        const icon = document.getElementById('refresh-icon');
+        icon.classList.add('fa-spin-once'); // 觸發旋轉動畫
+        
+        await load(); // 執行數據加載
+        
+        // 0.8秒後移除動畫類，以便下次點擊再次觸發
+        setTimeout(() => {
+            icon.classList.remove('fa-spin-once');
+        }, 800);
+    }
 
     function parseActual(text) {
         const clean = text.replace(/<[^>]*>/g, '').replace(/：/g, ':');
@@ -173,7 +215,6 @@
         return finalOutput.trim();
     }
 
-    // 通用滾動動畫函數
     function rotateList(list, elementId, currentIndexObj) {
         if (list.length === 0) return;
         const el = document.getElementById(elementId);
@@ -186,7 +227,6 @@
             currentIndexObj.index = (currentIndexObj.index + 1) % list.length;
             const item = list[currentIndexObj.index];
             
-            // 【修正點】如果是新聞欄位，不顯示時間
             if (elementId === 'news-marquee') {
                 el.innerText = `${item.title}`;
             } else {
@@ -215,15 +255,14 @@
                     if (f.id === "traffic") {
                         trafficDataList = data.items.map(i => ({ title: i.title, date: i.pubDate.split(' ')[1] || "" }));
                         const el = document.getElementById('traffic-marquee');
-                        if (el.innerText.includes("正在獲取")) {
+                        if (el.innerText.includes("正在獲取") || el.style.opacity === "0") {
                             el.innerText = `${trafficDataList[0].title} ${trafficDataList[0].date}`;
                             el.style.transform = "translateY(0)"; el.style.opacity = "1";
                         }
                     } else if (f.id === "news") {
                         newsDataList = data.items.map(i => ({ title: i.title, date: i.pubDate.split(' ')[1] || "" }));
                         const el = document.getElementById('news-marquee');
-                        if (el.innerText.includes("正在同步")) {
-                            // 【修正點】初始化時新聞不帶時間
+                        if (el.innerText.includes("正在同步") || el.style.opacity === "0") {
                             el.innerText = `${newsDataList[0].title}`;
                             el.style.transform = "translateY(0)"; el.style.opacity = "1";
                         }
