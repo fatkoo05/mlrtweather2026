@@ -3,256 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>澳門天氣實時資訊 Pro</title>
-    
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#4facfe">
-    <link rel="apple-touch-icon" href="icon-192.png">
-
+    <title>澳門監控 - 實時修復版</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <style>
-        :root {
-            --sunny-grad: linear-gradient(180deg, #4facfe 0%, #00f2fe 100%);
-            --cloudy-grad: linear-gradient(180deg, #bdc3c7 0%, #2c3e50 100%);
-            --rainy-grad: linear-gradient(180deg, #4b6cb7 0%, #182848 100%);
-            --night-grad: linear-gradient(180deg, #243b55 0%, #141e30 100%);
-            --card-glass: rgba(255, 255, 255, 0.1);
-        }
-
-        body {
-            font-family: 'PingFang HK', sans-serif;
-            margin: 0;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            background: var(--sunny-grad);
-            transition: background 1s ease;
-            color: white;
-            overflow-x: hidden; /* 防止動畫溢出 */
-            position: relative;
-        }
-
-        /* --- 動畫容器 --- */
-        #animation-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none; /* 讓點擊穿透動畫層 */
-            z-index: 0;
-        }
-
-        /* 雨滴動畫 CSS */
-        .rain {
-            position: absolute;
-            background-color: rgba(255, 255, 255, 0.6);
-            width: 2px;
-            height: 15px;
-            top: -20px;
-            border-radius: 2px;
-            animation: fall linear infinite;
-        }
-        @keyframes fall {
-            to { transform: translateY(100vh); }
-        }
-
-        /* 星星動畫 CSS */
-        .star {
-            position: absolute;
-            background-color: white;
-            width: 2px;
-            height: 2px;
-            border-radius: 50%;
-            animation: twinkle 2s infinite ease-in-out;
-        }
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.2; }
-            50% { opacity: 1; }
-        }
-
-        /* --- UI 介面 --- */
-        .glass-panel {
-            width: 100%;
-            max-width: 450px;
-            background: rgba(0, 0, 0, 0.2);
-            backdrop-filter: blur(10px);
-            min-height: 100vh;
-            padding: 20px;
-            box-sizing: border-box;
-            box-shadow: 0 0 20px rgba(0,0,0,0.3);
-            position: relative;
-            z-index: 1; /* 確保 UI 在動畫上方 */
-        }
-
-        .warning-banner {
-            background: #ff4757;
-            padding: 10px;
-            border-radius: 10px;
-            text-align: center;
-            font-weight: bold;
-            margin-bottom: 20px;
-            display: none;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse { 0% {opacity: 1} 50% {opacity: 0.6} 100% {opacity: 1} }
-
-        .main-weather {
-            text-align: center;
-            padding: 30px 0;
-        }
-        .main-weather i { font-size: 80px; margin-bottom: 15px; text-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        .temp-now { font-size: 5rem; font-weight: 200; margin: 0; text-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-        .desc { font-size: 1.5rem; opacity: 0.9; }
-
-        .station-grid {
-            background: var(--card-glass);
-            border-radius: 15px;
-            padding: 15px;
-            margin: 20px 0;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .station-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-        .station-item:last-child { border: none; }
-
-        .footer-info {
-            text-align: center;
-            font-size: 0.8rem;
-            opacity: 0.7;
-            margin-top: 30px;
-            padding-bottom: 20px;
-        }
+        html, body { height: 100%; margin: 0; padding: 0; background: #0d1117; color: #c9d1d9; font-family: sans-serif; font-size: clamp(16px, 1.2vw + 12px, 24px); overflow: hidden; }
+        body { display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; }
+        header { display: flex; justify-content: space-between; align-items: center; padding: 5px 10px 15px 5px; flex-shrink: 0; }
         
-        button#install-btn {
-            background: rgba(255,255,255,0.2);
-            border: 1px solid white;
-            color: white;
+        /* 手動刷新按鈕樣式 */
+        .refresh-btn {
+            background: #21262d;
+            color: #58a6ff;
+            border: 1px solid #30363d;
             padding: 8px 15px;
-            border-radius: 20px;
+            border-radius: 6px;
             cursor: pointer;
-            margin-top: 10px;
-            display: none; /* 預設隱藏，只有符合安裝條件才顯示 */
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s;
+            margin-right: auto; /* 靠左對齊 */
+            margin-left: 20px;
         }
+        .refresh-btn:hover { background: #30363d; border-color: #8b949e; }
+        .refresh-btn:active { transform: scale(0.95); }
+        .fa-spin-once { animation: spin 0.8s ease-in-out; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        #actual-mini { display: flex; gap: 15px; background: rgba(88, 166, 255, 0.12); padding: 8px 20px; border-radius: 40px; border: 1px solid rgba(88, 166, 255, 0.3); font-size: 1.1rem; align-items: center; }
+        #actual-mini img { height: 45px; width: auto; }
+        .marquee-container { border: 1px solid #30363d; margin-bottom: 10px; height: 50px; overflow: hidden; display: flex; align-items: center; background: #1c232d; flex-shrink: 0; }
+        .marquee-label { color: #0d1117; padding: 0 15px; font-weight: bold; font-size: 0.9rem; min-width: 110px; height: 100%; display: flex; align-items: center; }
+        .marquee-stage { flex-grow: 1; height: 100%; position: relative; }
+        .marquee-text { position: absolute; width: 100%; padding: 0 15px; font-size: 1rem; line-height: 50px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all 0.6s; }
+        .traffic-bar .marquee-label { background: #f2c94c; }
+        .news-bar .marquee-label { background: #d73a49; color: #fff; }
+        .grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 15px; flex-grow: 1; min-height: 0; }
+        .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 15px; display: flex; flex-direction: column; overflow: hidden; border-top: 4px solid #30363d; }
+        .card-forecast { border-top-color: #79c0ff; }
+        .card-warning { border-top-color: #f8e3a1; }
+        .card-seven { border-top-color: #7ee787; }
+        .content { font-size: 0.95rem; line-height: 1.6; overflow-y: auto; white-space: pre-wrap; flex-grow: 1; color: #d1d5db; }
+        .time { font-size: 0.8rem; color: #8b949e; margin-top: 10px; text-align: right; }
     </style>
 </head>
 <body>
 
-<div id="animation-container"></div> <div class="glass-panel">
-    <div id="warning-node" class="warning-banner"></div>
+<header style="display: flex; align-items: center; gap: 15px;">
+    <h1 id="status-title" style="margin: 0;">澳門資訊監控</h1>
+    
+    <button class="refresh-btn" onclick="manualRefresh()" style="flex-shrink: 0;">
+        <i id="refresh-icon" class="fa-solid fa-arrows-rotate"></i> 
+        <span style="font-size: 0.8rem;">手動刷新</span>
+    </button>
 
-    <div class="main-weather">
-        <i id="weather-icon" class="fas fa-sun"></i>
-        <p class="temp-now" id="cur-temp">--°</p>
-        <p class="desc" id="cur-desc">正在同步氣象局數據...</p>
-        <span id="update-time" style="font-size: 0.8rem; opacity: 0.6;"></span>
-        <br>
-        <button id="install-btn">安裝 App</button>
+    <div id="actual-mini" style="margin-left: auto;">讀取中...</div>
+</header>
+
+    <div class="marquee-container traffic-bar">
+        <div class="marquee-label">交通消息</div>
+        <div class="marquee-stage"><div id="traffic-marquee" class="marquee-text">同步中...</div></div>
     </div>
 
-    <div class="station-grid">
-        <div style="font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 5px;">分區實時氣溫</div>
-        <div id="station-list">
-            <div class="station-item"><span>大潭山</span><span>--°C</span></div>
-            <div class="station-item"><span>澳門砲台山</span><span>--°C</span></div>
-            <div class="station-item"><span>路環分站</span><span>--°C</span></div>
-        </div>
+    <div class="marquee-container news-bar">
+        <div class="marquee-label">澳廣視新聞</div>
+        <div class="marquee-stage"><div id="news-marquee" class="marquee-text">同步中...</div></div>
     </div>
 
-    <div class="footer-info">
-        <p>數據來源：澳門地球物理氣象局 (SMG)</p>
-        <p>此頁面每 5 分鐘自動刷新</p>
+    <div class="grid">
+        <div class="card card-forecast" id="forecast-box"></div>
+        <div class="card card-warning" id="warning-box"></div>
+        <div class="card card-seven" id="seven-box"></div>
     </div>
-</div>
 
 <script>
-// 使用更強大的代理服務器組合
-const proxies = [
-    "https://api.allorigins.win/raw?url=",
-    "https://corsproxy.io/?"
-];
+    const feeds = [
+        { id: "actual", url: "https://rss.smg.gov.mo/c_ActualWeather_rss.xml" },
+        { id: "forecast", name: "天氣預測", url: "https://rss.smg.gov.mo/c_WForecast_rss.xml", icon: "fa-cloud-sun" },
+        { id: "warning", name: "天氣警告", url: "https://rss.smg.gov.mo/c_WSignal_rss.xml", icon: "fa-triangle-exclamation" },
+        { id: "seven", name: "七日預測", url: "https://rss.smg.gov.mo/c_WForecast7days_rss.xml", icon: "fa-calendar-week" },
+        { id: "traffic", url: "https://dis.dsat.gov.mo:8017/traffic/xml/pn_rss.htm?language=tc" },
+        { id: "news", url: "https://cdn2.tdm.com.mo/xml/rss/zh_news.xml" }
+    ];
 
-async function fetchWithRetry(targetUrl) {
-    for (let proxy of proxies) {
-        try {
-            const res = await fetch(proxy + encodeURIComponent(targetUrl));
-            if (res.ok) return await res.json();
-        } catch (e) {
-            console.warn(`代理 ${proxy} 失敗，嘗試下一個...`);
-        }
-    }
-    throw new Error("所有數據代理均失效");
-}
+    let trafficDataList = [], newsDataList = [];
 
-async function fetchStations() {
-    const list = document.getElementById('station-list');
-    try {
-        // 氣象局實時各站數據 JSON 連結
-        const target = "https://www.smg.gov.mo/static/data/actual_stations.json?_=" + Date.now();
-        const data = await fetchWithRetry(target);
+    // 手動刷新函數
+    async function manualRefresh() {
+        const icon = document.getElementById('refresh-icon');
+        icon.classList.add('fa-spin-once'); // 增加旋轉動畫
         
-        // 氣象局數據結構處理：數據通常在 data 鍵值下或直接是數組
-        const stations = data.data || data;
+        await load(); // 執行原本的加載邏輯
         
-        list.innerHTML = '';
-        stations.forEach(st => {
-            // 排除掉沒有數據的站點
-            if (!st.temp && !st.wind_speed) return;
-
-            const item = document.createElement('div');
-            item.className = 'station-item';
-            item.innerHTML = `
-                <div>
-                    <span class="label-sm">位置</span>
-                    <strong>${st.station_name_cn || st.station_name}</strong>
-                </div>
-                <div>
-                    <span class="label-sm">氣溫</span>
-                    <span style="color: #fffa65; font-weight:bold;">${st.temp || '--'}°C</span>
-                </div>
-                <div>
-                    <span class="label-sm">風速(km/h)</span>
-                    ${st.wind_speed || '--'}
-                </div>
-            `;
-            list.appendChild(item);
-        });
-    } catch (e) {
-        console.error(e);
-        list.innerHTML = `
-            <div style="text-align:center; padding: 20px; color: #ffbcff;">
-                <i class="fas fa-exclamation-triangle"></i><br>
-                數據加載失敗<br>
-                <small style="font-size:0.7rem; opacity:0.8;">請檢查網絡或稍後再試</small>
-            </div>`;
+        // 動畫結束後移除 class 以便下次觸發
+        setTimeout(() => icon.classList.remove('fa-spin-once'), 800);
     }
-}
 
-// 警告與大潭山主數據建議繼續使用 RSS2JSON (較穩定)
-async function fetchActual() {
-    const rssUrl = "https://rss.smg.gov.mo/c_ActualWeather_rss.xml";
-    try {
-        const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&t=${Date.now()}`);
-        const data = await res.json();
-        if(data.status === 'ok') {
-            const item = data.items[0];
-            const content = item.content;
-            const tempMatch = content.match(/(\d+°C)/);
-            
-            document.getElementById('main-temp').innerText = tempMatch ? tempMatch[0].replace('°C', '°') : "--°";
-            document.getElementById('main-desc').innerText = item.title;
-            document.getElementById('update-time').innerText = "最後更新: " + item.pubDate;
+    function processContent(id, text) {
+        let clean = text.replace(/<[^>]*>/g, '').trim();
+        clean = clean.replace(/(警告類型|最近更新時間|內容)\s*(：|:)?/g, "").trim();
+        if (id === "warning") {
+            const result = clean.replace(/沒有(熱帶氣旋|暴雨|季候風|雷暴|風暴潮|海嘯).*\n?/g, "").trim();
+            return result === "" ? "現時沒有天氣警告" : result;
         }
-    } catch (e) {
-        console.error("RSS 獲取失敗");
+        if (id === "seven") return clean.replace(/(\d{4}-\d{2}-\d{2})/g, "\n\n$1\n").trim();
+        return clean;
     }
-}
+
+    async function load() {
+        const myGasUrl = "https://script.google.com/macros/s/AKfycbzgQYauGB2igGh44n3AcgA4ZzHkrkPL0yDAZuRtcNb-ikgwAtuZeCsGQz2h2J42l-dB/exec"; 
+        const now = new Date().toLocaleTimeString();
+        document.getElementById('status-title').innerText = "Google 專線同步中...";
+
+        for (const f of feeds) {
+            try {
+                const finalApi = `${myGasUrl}?url=${encodeURIComponent(f.url)}&_rand=${Date.now()}`;
+                const res = await fetch(finalApi, { cache: "no-store" });
+                const xmlText = await res.text();
+                
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+                const item = xmlDoc.querySelector("item");
+
+                if (!item) continue;
+
+                if (f.id === "actual") {
+                    const desc = item.querySelector("description").textContent;
+                    const icon = desc.match(/ww-[a-zA-Z0-9]+\.gif/);
+                    const img = icon ? `<img src="https://www.smg.gov.mo/icons/weatherIcon/${icon[0]}?v=${Date.now()}">` : "";
+                    document.getElementById('actual-mini').innerHTML = `<span>實時天氣</span> ${img}`;
+                } else if (f.id === "traffic") {
+                    trafficDataList = Array.from(xmlDoc.querySelectorAll("item")).map(i => ({
+                        title: i.querySelector("title").textContent,
+                        date: (i.querySelector("pubDate")?.textContent || "").split(' ')[4] || ""
+                    }));
+                } else if (f.id === "news") {
+                    newsDataList = Array.from(xmlDoc.querySelectorAll("item")).map(i => ({
+                        title: i.querySelector("title").textContent
+                    }));
+                } else {
+                    const box = document.getElementById(`${f.id}-box`);
+                    const content = processContent(f.id, item.querySelector("description").textContent);
+                    const pubDate = item.querySelector("pubDate")?.textContent || "";
+                    
+                    box.innerHTML = `
+                        <div class="card-header"><h2><i class="fa-solid ${f.icon}"></i> ${f.name}</h2></div>
+                        <div class="content">${content}</div>
+                        <div class="time">
+                            🕒 數據發布: ${pubDate}<br>
+                            <span style="color:#58a6ff">🚀 Google 專線更新於: ${now}</span>
+                        </div>
+                    `;
+                    (f.id === "warning" && content !== "現時沒有天氣警告") ? box.classList.add("alert-active") : box.classList.remove("alert-active");
+                }
+            } catch (e) { 
+                console.error(`[${f.id}] GAS 請求失敗:`, e); 
+            }
+        }
+        document.getElementById('status-title').innerText = "澳門資訊監控";
+    }
+
+    function rotate(list, elId, obj) {
+        if (!list.length) return;
+        const el = document.getElementById(elId);
+        el.style.opacity = "0";
+        setTimeout(() => {
+            obj.i = (obj.i + 1) % list.length;
+            el.innerText = elId.includes('news') ? list[obj.i].title : `${list[obj.i].title} ${list[obj.i].date}`;
+            el.style.opacity = "1";
+        }, 600);
+    }
+
+    window.onload = () => {
+        load();
+        setInterval(load, 60000);
+        const tc = {i:0}, nc = {i:0};
+        setInterval(() => rotate(trafficDataList, 'traffic-marquee', tc), 10000);
+        setInterval(() => rotate(newsDataList, 'news-marquee', nc), 12000);
+    };
 </script>
-
 </body>
 </html>
