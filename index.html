@@ -3,72 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>澳門監控 - 跨域修復版</title>
+    <title>澳門監控面板 - 天氣/交通/新聞</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        html, body { height: 100%; margin: 0; padding: 0; background: #0d1117; color: #c9d1d9; font-family: sans-serif; font-size: clamp(16px, 1.2vw + 12px, 24px); overflow: hidden; }
+        html, body { 
+            height: 100%; margin: 0; padding: 0; overflow: hidden; 
+            background: #0d1117; color: #c9d1d9;
+            font-family: "PingFang HK", "Microsoft JhengHei", sans-serif;
+            font-size: 18px; 
+        }
         body { display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; }
         header { display: flex; justify-content: space-between; align-items: center; padding: 5px 10px 15px 5px; flex-shrink: 0; }
+        h1 { margin: 0; font-size: 1.5rem; color: #58a6ff; letter-spacing: 1px; }
         
-        .refresh-btn {
-            background: #21262d;
-            color: #58a6ff;
-            border: 1px solid #30363d;
-            padding: 8px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.2s;
-            margin-right: auto;
-            margin-left: 20px;
+        #actual-mini {
+            display: flex; gap: 25px; background: rgba(88, 166, 255, 0.12);
+            padding: 10px 25px; border-radius: 40px; border: 1px solid rgba(88, 166, 255, 0.3);
+            font-family: "Consolas", monospace; font-size: 1.25rem; color: #f0f6fc; font-weight: 600; 
         }
-        .refresh-btn:hover { background: #30363d; border-color: #8b949e; }
-        .refresh-btn:active { transform: scale(0.95); }
-        .fa-spin-once { animation: spin 0.8s ease-in-out; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
 
-        #actual-mini { display: flex; gap: 15px; background: rgba(88, 166, 255, 0.12); padding: 8px 20px; border-radius: 40px; border: 1px solid rgba(88, 166, 255, 0.3); font-size: 1.1rem; align-items: center; }
-        #actual-mini img { height: 45px; width: auto; }
-        .marquee-container { border: 1px solid #30363d; margin-bottom: 10px; height: 50px; overflow: hidden; display: flex; align-items: center; background: #1c232d; flex-shrink: 0; }
-        .marquee-label { color: #0d1117; padding: 0 15px; font-weight: bold; font-size: 0.9rem; min-width: 110px; height: 100%; display: flex; align-items: center; }
-        .marquee-stage { flex-grow: 1; height: 100%; position: relative; }
-        .marquee-text { position: absolute; width: 100%; padding: 0 15px; font-size: 1rem; line-height: 50px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: all 0.6s; }
+        .marquee-container {
+            border: 1px solid #30363d;
+            margin-bottom: 10px; height: 50px; overflow: hidden; display: flex; align-items: center; flex-shrink: 0;
+        }
+        .marquee-label {
+            color: #0d1117; padding: 0 15px; font-weight: bold;
+            font-size: 1.1rem; z-index: 5; height: 100%; display: flex; align-items: center; min-width: 120px;
+        }
+        .marquee-stage { flex-grow: 1; height: 100%; position: relative; background: #1c232d; }
+        .marquee-text {
+            position: absolute; width: 100%; padding: 0 15px;
+            font-size: 1.1rem; font-weight: 500; white-space: nowrap; overflow: hidden;
+            text-overflow: ellipsis; opacity: 0; transform: translateY(50px);
+            line-height: 50px;
+        }
+
+        .traffic-bar { border-left: 5px solid #f2c94c; }
         .traffic-bar .marquee-label { background: #f2c94c; }
-        .news-bar .marquee-label { background: #d73a49; color: #fff; }
+        #traffic-marquee { color: #f2c94c; }
+
+        .news-bar { border-left: 5px solid #d73a49; }
+        .news-bar .marquee-label { background: #d73a49; color: #ffffff; }
+        #news-marquee { color: #ff7b72; }
+
         .grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 15px; flex-grow: 1; min-height: 0; }
-        .card { background: #161b22; border: 1px solid #30363d; border-radius: 10px; padding: 15px; display: flex; flex-direction: column; overflow: hidden; border-top: 4px solid #30363d; }
-        .card-forecast { border-top-color: #79c0ff; }
-        .card-warning { border-top-color: #f8e3a1; }
-        .card-seven { border-top-color: #7ee787; }
-        .content { font-size: 0.95rem; line-height: 1.6; overflow-y: auto; white-space: pre-wrap; flex-grow: 1; color: #d1d5db; }
-        .time { font-size: 0.8rem; color: #8b949e; margin-top: 10px; text-align: right; }
+        .card { 
+            background: #161b22; border: 1px solid #30363d; border-radius: 10px; 
+            padding: 15px; display: flex; flex-direction: column; min-height: 0; transition: all 0.3s ease;
+        }
+
+        .card-warning.alert-active { background: #ffffff !important; border: 4px solid #d73a49 !important; animation: pulse-border 2s infinite; }
+        .alert-active .card-header h2, .alert-active .card-header i, .alert-active .content { color: #d73a49 !important; font-weight: bold; }
+        .alert-active .time { color: #6a737d !important; }
+
+        @keyframes pulse-border {
+            0% { box-shadow: 0 0 0 0 rgba(215, 58, 73, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(215, 58, 73, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(215, 58, 73, 0); }
+        }
+
+        .card-forecast { border-top: 4px solid #79c0ff; }
+        .card-warning  { border-top: 4px solid #f8e3a1; }
+        .card-seven    { border-top: 4px solid #7ee787; }
+
+        .card-header { display: flex; align-items: center; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid #30363d; flex-shrink: 0; }
+        .card-header i { font-size: 1.3rem; margin-right: 10px; color: #58a6ff; }
+        .card-header h2 { font-size: 1.2rem; margin: 0; color: #f0f6fc; }
+        .content { font-size: 1.1rem; line-height: 1.7; overflow-y: auto; white-space: pre-wrap; flex-grow: 1; padding-right: 8px; color: #d1d5db; }
+        .time { font-size: 0.85rem; color: #8b949e; margin-top: 10px; text-align: right; flex-shrink: 0; }
     </style>
 </head>
 <body>
 
-<header style="display: flex; align-items: center; gap: 15px;">
-    <h1 id="status-title" style="margin: 0;">澳門資訊監控</h1>
-    <button class="refresh-btn" onclick="manualRefresh()">
-        <i id="refresh-icon" class="fa-solid fa-arrows-rotate"></i> 
-        <span style="font-size: 0.8rem;">手動刷新</span>
-    </button>
-    <div id="actual-mini" style="margin-left: auto;">讀取中...</div>
-</header>
+    <header>
+        <h1><i class="fa-solid fa-tower-broadcast"></i> 澳門資訊監控</h1>
+        <div id="actual-mini">數據載入中...</div>
+    </header>
 
     <div class="marquee-container traffic-bar">
-        <div class="marquee-label">交通消息</div>
-        <div class="marquee-stage"><div id="traffic-marquee" class="marquee-text">同步中...</div></div>
+        <div class="marquee-label"><i class="fa-solid fa-car"></i> 交通消息</div>
+        <div class="marquee-stage">
+            <div id="traffic-marquee" class="marquee-text">正在獲取最新交通訊息...</div>
+        </div>
     </div>
 
     <div class="marquee-container news-bar">
-        <div class="marquee-label">澳廣視新聞</div>
-        <div class="marquee-stage"><div id="news-marquee" class="marquee-text">同步中...</div></div>
+        <div class="marquee-label"><i class="fa-solid fa-newspaper"></i> 澳廣視新聞</div>
+        <div class="marquee-stage">
+            <div id="news-marquee" class="marquee-text">正在同步最新新聞...</div>
+        </div>
     </div>
 
-    <div class="grid">
+    <div id="board" class="grid">
         <div class="card card-forecast" id="forecast-box"></div>
         <div class="card card-warning" id="warning-box"></div>
         <div class="card card-seven" id="seven-box"></div>
@@ -84,100 +110,152 @@
         { id: "news", url: "https://cdn2.tdm.com.mo/xml/rss/zh_news.xml" }
     ];
 
-    let trafficDataList = [], newsDataList = [];
+    const windMap = { "北": "N", "東北": "NE", "東": "E", "東南": "SE", "南": "S", "西南": "SW", "西": "W", "西北": "NW", "微風": "Light" };
+    
+    let trafficDataList = [];
+    let newsDataList = [];
 
-    async function manualRefresh() {
-        const icon = document.getElementById('refresh-icon');
-        icon.classList.add('fa-spin-once');
-        await load();
-        setTimeout(() => icon.classList.remove('fa-spin-once'), 800);
+    function parseActual(text) {
+        const clean = text.replace(/<[^>]*>/g, '').replace(/：/g, ':');
+        const getVal = (label) => {
+            const reg = new RegExp(`${label}:\\s*([^\\n\\s°%km/h度]+)`);
+            const match = clean.match(reg);
+            return match ? match[1].trim() : '--';
+        };
+        const temp = getVal('溫度');
+        const humi = getVal('濕度');
+        const rawWindDir = getVal('風向');
+        const windSpeed = getVal('風速');
+        return `<span><i class="fa-solid fa-thermometer"></i> ${temp}℃</span><span><i class="fa-solid fa-droplet"></i> ${humi}%</span><span><i class="fa-solid fa-wind"></i> ${windMap[rawWindDir] || rawWindDir} ${windSpeed}km/h</span>`;
     }
 
     function processContent(id, text) {
         let clean = text.replace(/<[^>]*>/g, '').trim();
         clean = clean.replace(/(警告類型|最近更新時間|內容)\s*(：|:)?/g, "").trim();
+        clean = clean.replace(/預測於\s*/g, "");
+        clean = clean.replace(/(\d+)\s*至\s*(\d+)/g, "$1 - $2");
+
         if (id === "warning") {
-            const result = clean.replace(/沒有(熱帶氣旋|暴雨|季候風|雷暴|風暴潮|海嘯).*\n?/g, "").trim();
-            return result === "" ? "現時沒有天氣警告" : result;
-        }
-        if (id === "seven") return clean.replace(/(\d{4}-\d{2}-\d{2})/g, "\n\n$1\n").trim();
-        return clean;
-    }
+            let lines = clean.split('\n');
+            let processedLines = [];
+            const filterRules = [
+                { keyword: "沒有熱帶氣旋信號", remove: ["熱帶氣旋"] },
+                { keyword: "沒有暴雨警告信號", remove: ["暴雨"] },
+                { keyword: "沒有季候風黑球警告", remove: ["強烈季候風"] },
+                { keyword: "沒有雷暴警告信號", remove: ["雷暴"] },
+                { keyword: "沒有風暴潮警告", remove: ["風暴潮"] },
+                { keyword: "沒有海嘯警告信號", remove: ["海嘯"] }
+            ];
 
-    async function load() {
-        const titleEl = document.getElementById('status-title');
-        titleEl.innerText = "正在透過公用代理同步...";
-        const now = new Date().toLocaleTimeString();
-
-        // 使用 AllOrigins 公用代理替換 GAS
-        const proxyPrefix = "https://api.allorigins.win/get?url=";
-
-        for (const f of feeds) {
-            try {
-                const finalApi = `${proxyPrefix}${encodeURIComponent(f.url + "?t=" + Date.now())}`;
-                const res = await fetch(finalApi);
-                const data = await res.json();
-                const xmlText = data.contents; // AllOrigins 返回的內容在 contents 屬性中
-                
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-                const item = xmlDoc.querySelector("item");
-
-                if (!item) continue;
-
-                if (f.id === "actual") {
-                    const desc = item.querySelector("description").textContent;
-                    const icon = desc.match(/ww-[a-zA-Z0-9]+\.gif/);
-                    const img = icon ? `<img src="https://www.smg.gov.mo/icons/weatherIcon/${icon[0]}">` : "";
-                    document.getElementById('actual-mini').innerHTML = `<span>實時天氣</span> ${img}`;
-                } else if (f.id === "traffic") {
-                    trafficDataList = Array.from(xmlDoc.querySelectorAll("item")).map(i => ({
-                        title: i.querySelector("title").textContent,
-                        date: (i.querySelector("pubDate")?.textContent || "").split(' ')[4] || ""
-                    }));
-                } else if (f.id === "news") {
-                    newsDataList = Array.from(xmlDoc.querySelectorAll("item")).map(i => ({
-                        title: i.querySelector("title").textContent
-                    }));
+            for (let i = 0; i < lines.length; i++) {
+                let currentLine = lines[i].trim();
+                if (!currentLine) continue;
+                const rule = filterRules.find(r => currentLine.includes(r.keyword));
+                if (rule) {
+                    let j = processedLines.length - 1;
+                    while (j >= 0) {
+                        const prevLine = processedLines[j];
+                        const shouldRemoveTitle = rule.remove.some(word => prevLine.includes(word));
+                        const isDateLine = /\d{4}-\d{2}-\d{2}/.test(prevLine);
+                        if (shouldRemoveTitle || isDateLine) { processedLines.pop(); j--; } else { break; }
+                    }
                 } else {
-                    const box = document.getElementById(`${f.id}-box`);
-                    const content = processContent(f.id, item.querySelector("description").textContent);
-                    const pubDate = item.querySelector("pubDate")?.textContent || "";
-                    
-                    box.innerHTML = `
-                        <div class="card-header"><h2><i class="fa-solid ${f.icon}"></i> ${f.name}</h2></div>
-                        <div class="content">${content}</div>
-                        <div class="time">
-                            🕒 數據發布: ${pubDate}<br>
-                            <span style="color:#79c0ff">📡 公用專線更新於: ${now}</span>
-                        </div>
-                    `;
+                    if (/(暴雨|強烈季候風|雷暴|風暴潮|海嘯|熱帶氣旋)/.test(currentLine)) {
+                        processedLines.push("\n" + currentLine);
+                    } else { processedLines.push(currentLine); }
                 }
-            } catch (e) { 
-                console.error(`[${f.id}] 請求失敗:`, e); 
             }
+            const result = processedLines.join('\n').trim();
+            return (result === "") ? "現時沒有天氣警告" : result;
         }
-        titleEl.innerText = "澳門資訊監控";
+
+        let finalOutput = clean.replace(/(\d{4}-\d{2}-\d{2})/g, "\n\n$1\n");
+        return finalOutput.trim();
     }
 
-    function rotate(list, elId, obj) {
-        if (!list.length) return;
-        const el = document.getElementById(elId);
+    // 通用滾動動畫函數
+    function rotateList(list, elementId, currentIndexObj) {
+        if (list.length === 0) return;
+        const el = document.getElementById(elementId);
+        
+        el.style.transition = "transform 0.6s ease-in, opacity 0.4s";
+        el.style.transform = "translateY(-40px)";
         el.style.opacity = "0";
+
         setTimeout(() => {
-            obj.i = (obj.i + 1) % list.length;
-            el.innerText = elId.includes('news') ? list[obj.i].title : `${list[obj.i].title} ${list[obj.i].date}`;
-            el.style.opacity = "1";
+            currentIndexObj.index = (currentIndexObj.index + 1) % list.length;
+            const item = list[currentIndexObj.index];
+            
+            // 【修正點】如果是新聞欄位，不顯示時間
+            if (elementId === 'news-marquee') {
+                el.innerText = `${item.title}`;
+            } else {
+                el.innerText = `${item.title} ${item.date || ""}`;
+            }
+            
+            el.style.transition = "none";
+            el.style.transform = "translateY(40px)";
+            
+            setTimeout(() => {
+                el.style.transition = "transform 0.6s ease-out, opacity 0.4s";
+                el.style.transform = "translateY(0px)";
+                el.style.opacity = "1";
+            }, 50);
         }, 600);
     }
 
-    window.onload = () => {
-        load();
-        setInterval(load, 120000); // 考慮到公用代理壓力，建議改為 2 分鐘刷新一次
-        const tc = {i:0}, nc = {i:0};
-        setInterval(() => rotate(trafficDataList, 'traffic-marquee', tc), 10000);
-        setInterval(() => rotate(newsDataList, 'news-marquee', nc), 12000);
-    };
+    async function load() {
+        for (const f of feeds) {
+            try {
+                const api = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(f.url)}&_=${Date.now()}`;
+                const res = await fetch(api);
+                const data = await res.json();
+                
+                if (data.status === 'ok' && data.items.length > 0) {
+                    if (f.id === "traffic") {
+                        trafficDataList = data.items.map(i => ({ title: i.title, date: i.pubDate.split(' ')[1] || "" }));
+                        const el = document.getElementById('traffic-marquee');
+                        if (el.innerText.includes("正在獲取")) {
+                            el.innerText = `${trafficDataList[0].title} ${trafficDataList[0].date}`;
+                            el.style.transform = "translateY(0)"; el.style.opacity = "1";
+                        }
+                    } else if (f.id === "news") {
+                        newsDataList = data.items.map(i => ({ title: i.title, date: i.pubDate.split(' ')[1] || "" }));
+                        const el = document.getElementById('news-marquee');
+                        if (el.innerText.includes("正在同步")) {
+                            // 【修正點】初始化時新聞不帶時間
+                            el.innerText = `${newsDataList[0].title}`;
+                            el.style.transform = "translateY(0)"; el.style.opacity = "1";
+                        }
+                    } else if (f.id === "actual") {
+                        document.getElementById('actual-mini').innerHTML = parseActual(data.items[0].description);
+                    } else {
+                        const content = processContent(f.id, data.items[0].description);
+                        const displayTime = data.items[0].pubDate || new Date().toLocaleString('zh-HK');
+                        const box = document.getElementById(`${f.id}-box`);
+                        
+                        box.innerHTML = `<div class="card-header"><i class="fa-solid ${f.icon}"></i><h2>${f.name}</h2></div><div class="content">${content}</div><div class="time">🕒 ${displayTime}</div>`;
+
+                        if (f.id === "warning") {
+                            if (content !== "現時沒有天氣警告") { box.classList.add("alert-active"); } 
+                            else { box.classList.remove("alert-active"); }
+                        }
+                    }
+                }
+            } catch (e) { console.error(e); }
+        }
+    }
+
+    load();
+    setInterval(load, 60000);
+
+    const trafficCounter = { index: 0 };
+    const newsCounter = { index: 0 };
+
+    setInterval(() => rotateList(trafficDataList, 'traffic-marquee', trafficCounter), 12000); 
+    setTimeout(() => {
+        setInterval(() => rotateList(newsDataList, 'news-marquee', newsCounter), 12000);
+    }, 6000);
 </script>
 </body>
 </html>
