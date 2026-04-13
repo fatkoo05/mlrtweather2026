@@ -244,47 +244,46 @@
         }, 600);
     }
 
-async function load() {
-    const titleEl = document.getElementById('status-title');
-    if (titleEl) titleEl.innerText = "數據刷新中...";
-    
-    // 使用 AllOrigins 代理，並在 URL 末尾強制加入隨機數
-    const proxy = "https://api.allorigins.win/get?url=";
+    async function load() {
+        for (const f of feeds) {
+            try {
+                const api = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(f.url)}&_=${Date.now()}`;
+                const res = await fetch(api);
+                const data = await res.json();
+                
+                if (data.status === 'ok' && data.items.length > 0) {
+                    if (f.id === "traffic") {
+                        trafficDataList = data.items.map(i => ({ title: i.title, date: i.pubDate.split(' ')[1] || "" }));
+                        const el = document.getElementById('traffic-marquee');
+                        if (el.innerText.includes("正在獲取") || el.style.opacity === "0") {
+                            el.innerText = `${trafficDataList[0].title} ${trafficDataList[0].date}`;
+                            el.style.transform = "translateY(0)"; el.style.opacity = "1";
+                        }
+                    } else if (f.id === "news") {
+                        newsDataList = data.items.map(i => ({ title: i.title, date: i.pubDate.split(' ')[1] || "" }));
+                        const el = document.getElementById('news-marquee');
+                        if (el.innerText.includes("正在同步") || el.style.opacity === "0") {
+                            el.innerText = `${newsDataList[0].title}`;
+                            el.style.transform = "translateY(0)"; el.style.opacity = "1";
+                        }
+                    } else if (f.id === "actual") {
+                        document.getElementById('actual-mini').innerHTML = parseActual(data.items[0].description);
+                    } else {
+                        const content = processContent(f.id, data.items[0].description);
+                        const displayTime = data.items[0].pubDate || new Date().toLocaleString('zh-HK');
+                        const box = document.getElementById(`${f.id}-box`);
+                        
+                        box.innerHTML = `<div class="card-header"><i class="fa-solid ${f.icon}"></i><h2>${f.name}</h2></div><div class="content">${content}</div><div class="time">🕒 ${displayTime}</div>`;
 
-    for (const f of feeds) {
-        try {
-            // 在原始 URL 後面也加上時間戳，確保代理伺服器去抓新的
-            const targetUrl = encodeURIComponent(f.url + (f.url.includes('?') ? '&' : '?') + 'cache=' + Date.now());
-            const res = await fetch(`${proxy}${targetUrl}`);
-            const data = await res.json();
-            const xmlText = data.contents; // 取得原始 XML 字串
-
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-            const item = xmlDoc.querySelector("item");
-
-            if (item) {
-                if (f.id === "traffic") {
-                    // 交通數據解析
-                    const items = Array.from(xmlDoc.querySelectorAll("item"));
-                    trafficDataList = items.map(i => ({
-                        title: i.querySelector("title")?.textContent || "",
-                        date: (i.querySelector("pubDate")?.textContent || "").split(' ')[4] || "" 
-                    }));
-                    // 立即更新畫面顯示
-                    const el = document.getElementById('traffic-marquee');
-                    el.innerText = `${trafficDataList[0].title} ${trafficDataList[0].date}`;
-                    el.style.opacity = "1";
-                    el.style.transform = "translateY(0)";
-                } 
-                // ... 其他 f.id (news, forecast 等) 的解析邏輯同理 ...
-            }
-        } catch (e) {
-            console.error(f.id + " 加載失敗", e);
+                        if (f.id === "warning") {
+                            if (content !== "現時沒有天氣警告") { box.classList.add("alert-active"); } 
+                            else { box.classList.remove("alert-active"); }
+                        }
+                    }
+                }
+            } catch (e) { console.error(e); }
         }
     }
-    if (titleEl) titleEl.innerText = "澳門資訊監控";
-}
 
     load();
     setInterval(load, 60000);
