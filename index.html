@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>澳門監控 - 實時修復版</title>
+    <title>澳門監控 - 跨域修復版</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         html, body { height: 100%; margin: 0; padding: 0; background: #0d1117; color: #c9d1d9; font-family: sans-serif; font-size: clamp(16px, 1.2vw + 12px, 24px); overflow: hidden; }
         body { display: flex; flex-direction: column; padding: 15px; box-sizing: border-box; }
         header { display: flex; justify-content: space-between; align-items: center; padding: 5px 10px 15px 5px; flex-shrink: 0; }
         
-        /* 手動刷新按鈕樣式 */
         .refresh-btn {
             background: #21262d;
             color: #58a6ff;
@@ -23,7 +22,7 @@
             align-items: center;
             gap: 8px;
             transition: all 0.2s;
-            margin-right: auto; /* 靠左對齊 */
+            margin-right: auto;
             margin-left: 20px;
         }
         .refresh-btn:hover { background: #30363d; border-color: #8b949e; }
@@ -52,12 +51,10 @@
 
 <header style="display: flex; align-items: center; gap: 15px;">
     <h1 id="status-title" style="margin: 0;">澳門資訊監控</h1>
-    
-    <button class="refresh-btn" onclick="manualRefresh()" style="flex-shrink: 0;">
+    <button class="refresh-btn" onclick="manualRefresh()">
         <i id="refresh-icon" class="fa-solid fa-arrows-rotate"></i> 
         <span style="font-size: 0.8rem;">手動刷新</span>
     </button>
-
     <div id="actual-mini" style="margin-left: auto;">讀取中...</div>
 </header>
 
@@ -89,14 +86,10 @@
 
     let trafficDataList = [], newsDataList = [];
 
-    // 手動刷新函數
     async function manualRefresh() {
         const icon = document.getElementById('refresh-icon');
-        icon.classList.add('fa-spin-once'); // 增加旋轉動畫
-        
-        await load(); // 執行原本的加載邏輯
-        
-        // 動畫結束後移除 class 以便下次觸發
+        icon.classList.add('fa-spin-once');
+        await load();
         setTimeout(() => icon.classList.remove('fa-spin-once'), 800);
     }
 
@@ -112,15 +105,19 @@
     }
 
     async function load() {
-        const myGasUrl = "https://script.google.com/macros/s/AKfycbzgQYauGB2igGh44n3AcgA4ZzHkrkPL0yDAZuRtcNb-ikgwAtuZeCsGQz2h2J42l-dB/exec"; 
+        const titleEl = document.getElementById('status-title');
+        titleEl.innerText = "正在透過公用代理同步...";
         const now = new Date().toLocaleTimeString();
-        document.getElementById('status-title').innerText = "Google 專線同步中...";
+
+        // 使用 AllOrigins 公用代理替換 GAS
+        const proxyPrefix = "https://api.allorigins.win/get?url=";
 
         for (const f of feeds) {
             try {
-                const finalApi = `${myGasUrl}?url=${encodeURIComponent(f.url)}&_rand=${Date.now()}`;
-                const res = await fetch(finalApi, { cache: "no-store" });
-                const xmlText = await res.text();
+                const finalApi = `${proxyPrefix}${encodeURIComponent(f.url + "?t=" + Date.now())}`;
+                const res = await fetch(finalApi);
+                const data = await res.json();
+                const xmlText = data.contents; // AllOrigins 返回的內容在 contents 屬性中
                 
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xmlText, "text/xml");
@@ -131,7 +128,7 @@
                 if (f.id === "actual") {
                     const desc = item.querySelector("description").textContent;
                     const icon = desc.match(/ww-[a-zA-Z0-9]+\.gif/);
-                    const img = icon ? `<img src="https://www.smg.gov.mo/icons/weatherIcon/${icon[0]}?v=${Date.now()}">` : "";
+                    const img = icon ? `<img src="https://www.smg.gov.mo/icons/weatherIcon/${icon[0]}">` : "";
                     document.getElementById('actual-mini').innerHTML = `<span>實時天氣</span> ${img}`;
                 } else if (f.id === "traffic") {
                     trafficDataList = Array.from(xmlDoc.querySelectorAll("item")).map(i => ({
@@ -152,16 +149,15 @@
                         <div class="content">${content}</div>
                         <div class="time">
                             🕒 數據發布: ${pubDate}<br>
-                            <span style="color:#58a6ff">🚀 Google 專線更新於: ${now}</span>
+                            <span style="color:#79c0ff">📡 公用專線更新於: ${now}</span>
                         </div>
                     `;
-                    (f.id === "warning" && content !== "現時沒有天氣警告") ? box.classList.add("alert-active") : box.classList.remove("alert-active");
                 }
             } catch (e) { 
-                console.error(`[${f.id}] GAS 請求失敗:`, e); 
+                console.error(`[${f.id}] 請求失敗:`, e); 
             }
         }
-        document.getElementById('status-title').innerText = "澳門資訊監控";
+        titleEl.innerText = "澳門資訊監控";
     }
 
     function rotate(list, elId, obj) {
@@ -177,7 +173,7 @@
 
     window.onload = () => {
         load();
-        setInterval(load, 60000);
+        setInterval(load, 120000); // 考慮到公用代理壓力，建議改為 2 分鐘刷新一次
         const tc = {i:0}, nc = {i:0};
         setInterval(() => rotate(trafficDataList, 'traffic-marquee', tc), 10000);
         setInterval(() => rotate(newsDataList, 'news-marquee', nc), 12000);
