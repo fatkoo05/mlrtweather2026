@@ -6,7 +6,7 @@
     <title>澳門監控面板 - 天氣/交通/新聞</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        /* 定義變數 - 預設深色模式 */
+        /* 保持您原本的 CSS 樣式不變 */
         :root {
             --bg-color: #0d1117;
             --card-bg: #161b22;
@@ -18,7 +18,6 @@
             --secondary-text: #8b949e;
         }
 
-        /* 淺色模式變數 */
         [data-theme="light"] {
             --bg-color: #f6f8fa;
             --card-bg: #ffffff;
@@ -66,7 +65,7 @@
         }
         .marquee-label { color: #ffffff; padding: 0 15px; font-weight: bold; font-size: 1.1rem; z-index: 5; height: 100%; display: flex; align-items: center; min-width: 120px; }
         .marquee-stage { flex-grow: 1; height: 100%; position: relative; background: var(--marquee-bg); }
-        .marquee-text { position: absolute; width: 100%; padding: 0 15px; font-size: 1.1rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 0; transform: translateY(50px); line-height: 50px; }
+        .marquee-text { position: absolute; width: 100%; padding: 0 15px; font-size: 1.1rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; opacity: 1; transform: translateY(0); line-height: 50px; }
 
         .traffic-bar { border-left: 5px solid #f2c94c; }
         .traffic-bar .marquee-label { background: #f2c94c; color: #000; }
@@ -123,20 +122,20 @@
                 </button>
             </div>
         </h1>
-        <div id="actual-mini">數據載入中...</div>
+        <div id="actual-mini">--℃ / --% / --</div>
     </header>
 
     <div class="marquee-container traffic-bar">
         <div class="marquee-label"><i class="fa-solid fa-car"></i> 交通消息</div>
         <div class="marquee-stage">
-            <div id="traffic-marquee" class="marquee-text">正在獲取最新交通訊息...</div>
+            <div id="traffic-marquee" class="marquee-text">正在獲取最新五條交通訊息...</div>
         </div>
     </div>
 
     <div class="marquee-container news-bar">
         <div class="marquee-label"><i class="fa-solid fa-newspaper"></i> 澳廣視新聞</div>
         <div class="marquee-stage">
-            <div id="news-marquee" class="marquee-text">正在同步最新新聞...</div>
+            <div id="news-marquee" class="marquee-text">正在同步最新五條新聞...</div>
         </div>
     </div>
 
@@ -160,9 +159,7 @@
     let trafficDataList = [], newsDataList = [];
     let autoTimer = null;
 
-    // --- 初始化與主題控制 ---
     window.onload = () => {
-        // 套用儲存的主題
         const savedTheme = localStorage.getItem('theme') || 'dark';
         document.documentElement.setAttribute('data-theme', savedTheme);
         updateThemeIcon(savedTheme);
@@ -181,8 +178,7 @@
     }
 
     function updateThemeIcon(theme) {
-        const btn = document.getElementById('theme-btn');
-        btn.innerHTML = theme === 'dark' ? '<i class="fa-solid fa-moon"></i>' : '<i class="fa-solid fa-sun"></i>';
+        document.getElementById('theme-btn').innerHTML = theme === 'dark' ? '<i class="fa-solid fa-moon"></i>' : '<i class="fa-solid fa-sun"></i>';
     }
 
     async function manualRefresh() {
@@ -196,7 +192,6 @@
         const btn = document.getElementById('auto-btn');
         const secondsInput = document.getElementById('auto-seconds');
         const interval = parseInt(secondsInput.value) * 1000;
-
         if (autoTimer) {
             clearInterval(autoTimer); autoTimer = null;
             btn.classList.remove('active'); btn.innerHTML = '<i class="fa-solid fa-clock"></i> 自動更新 (OFF)';
@@ -283,15 +278,38 @@
                 const res = await fetch(api);
                 const data = await res.json();
                 if (data.status === 'ok' && data.items.length > 0) {
-                    if (f.id === "traffic") {
-                        trafficDataList = data.items.map(i => ({ title: i.title, date: i.pubDate.split(' ')[1] || "" }));
-                        const el = document.getElementById('traffic-marquee');
-                        if (el.innerText.includes("正在獲取")) { el.innerText = `${trafficDataList[0].title} ${trafficDataList[0].date}`; el.style.opacity = "1"; el.style.transform = "translateY(0)"; }
-                    } else if (f.id === "news") {
-                        newsDataList = data.items.map(i => ({ title: i.title }));
-                        const el = document.getElementById('news-marquee');
-                        if (el.innerText.includes("正在同步")) { el.innerText = newsDataList[0].title; el.style.opacity = "1"; el.style.transform = "translateY(0)"; }
-                    } else if (f.id === "actual") {
+                    
+                    // --- 處理跑馬燈邏輯 (交通 & 新聞) ---
+                    if (f.id === "traffic" || f.id === "news") {
+                        // 1. 先將所有項目帶上時間戳進行解析
+                        const processedItems = data.items.map(item => ({
+                            title: item.title,
+                            date: item.pubDate ? item.pubDate.split(' ')[1] : "", // 提取時間部分 HH:mm:ss
+                            timeValue: item.pubDate ? new Date(item.pubDate).getTime() : 0 // 轉為毫秒數進行比較
+                        }));
+
+                        // 2. 依據時間戳進行降序排序 (最新時間在最前面)
+                        processedItems.sort((a, b) => b.timeValue - a.timeValue);
+
+                        // 3. 提取距離現在最近的五條
+                        const topThree = processedItems.slice(0, 5);
+
+                        if (f.id === "traffic") {
+                            trafficDataList = topThree;
+                            const el = document.getElementById('traffic-marquee');
+                            if (el.innerText.includes("正在獲取")) { 
+                                el.innerText = `${trafficDataList[0].title} ${trafficDataList[0].date}`; 
+                            }
+                        } else {
+                            newsDataList = topThree;
+                            const el = document.getElementById('news-marquee');
+                            if (el.innerText.includes("正在同步")) { 
+                                el.innerText = newsDataList[0].title; 
+                            }
+                        }
+                    } 
+                    // --- 處理其他天氣資訊 ---
+                    else if (f.id === "actual") {
                         document.getElementById('actual-mini').innerHTML = parseActual(data.items[0].description);
                     } else if (f.id === "warning") {
                         const box = document.getElementById('warning-box');
@@ -333,7 +351,9 @@
 
     const trafficCounter = { index: 0 }, newsCounter = { index: 0 };
     setInterval(() => rotateList(trafficDataList, 'traffic-marquee', trafficCounter), 12000); 
-    setTimeout(() => setInterval(() => rotateList(newsDataList, 'news-marquee', newsCounter), 12000), 6000);
+    setTimeout(() => {
+        setInterval(() => rotateList(newsDataList, 'news-marquee', newsCounter), 12000);
+    }, 6000);
 </script>
 </body>
 </html>
