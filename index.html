@@ -285,16 +285,22 @@
         }
     }
 
+// 初始載入數據
     load();
-    setInterval(load, 60000);
+    
+    // 自動刷新數據頻率：10 分鐘 (600,000 ms)
+    setInterval(load, 600000); 
 
     const trafficCounter = { index: 0 };
     const newsCounter = { index: 0 };
 
-    setInterval(() => rotateList(trafficDataList, 'traffic-marquee', trafficCounter), 12000); 
+    // 交通消息跑馬燈：每 15 秒切換一次 (15,000 ms)
+    setInterval(() => rotateList(trafficDataList, 'traffic-marquee', trafficCounter), 15000); 
+
+    // 澳廣視新聞跑馬燈：每 15 秒切換一次，並延遲 7.5 秒啟動，錯開兩者切換時間，視覺更平衡
     setTimeout(() => {
-        setInterval(() => rotateList(newsDataList, 'news-marquee', newsCounter), 12000);
-    }, 6000);
+        setInterval(() => rotateList(newsDataList, 'news-marquee', newsCounter), 15000);
+    }, 7500);
 </script>
 </body>
 </html>
